@@ -14,7 +14,7 @@ library(forcats)
 ```
 
 ```{r}
-hypertension <- read_xlsx("data/originals/DominicanHTN_add_sign.xlsx")
+hypertension <- read_xlsx("../data/originals/DominicanHTN_add_sign.xlsx")
 ```
 
 ```{r}
