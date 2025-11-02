@@ -2,7 +2,13 @@
 title: "Гипертензия в Доминиканской республике"
 author: "Команда №1: Ахметова Мария, Ильина Ирина, Кулиева Мария, Левченко Диана"
 date: "2025-11-02"
-output: html_document
+output:
+  html_document:
+    toc: true
+    toc_float: 
+      collapsed: false
+    toc_depth: 2
+    toc-title: "Содержание"
 ---
 
 ```{r setup, include=FALSE}
@@ -227,10 +233,10 @@ ggplot(hypertension, aes(x = severity_hypertension, fill = Gender)) +
   geom_bar(position = "dodge", width = 0.7) +
   labs(title = "График распределения пола пациентов по группам в зависимости от выраженности гипертензии", 
        x = "Группа", 
-       y = "Количество пациентов, шт.") +
+       y = "Количество пациентов") +
   scale_x_hypertension +
   scale_y_continuous(
-    name = "Количество пациентов, шт.",
+    name = "Количество пациентов",
     breaks = seq(0, 150, 25))+
   scale_fill_gender+
   theme_bw()+
@@ -270,7 +276,7 @@ scale_fill_hypertension <- scale_fill_manual(
 ggplot(hypertension, aes(x = Village, fill = severity_hypertension)) +
   geom_bar(position = "dodge", width = 0.8) +
   labs(title = "График распределения групп по деревням в зависимости от выраженности гипертензии",
-       x = "Деревня", y = "Количество пациентов, шт.")+
+       x = "Деревня", y = "Количество пациентов")+
   scale_fill_hypertension+
   theme_bw()+
   theme(
