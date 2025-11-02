@@ -13,10 +13,11 @@ library(tidyverse)
 library(readxl)
 ```
 
-# 1. Разбить пациентов на три группы в зависимости от выраженности гипертензии.
+#1. Загрузка данных и разделение пациентов на три группы в зависимости от тяжести гипертензии
 
+```{r hypertension-classification}
+hypertansion <- read_xlsx("data/originals/DominicanHTN_add_sign.xlsx")
 
-```{r}
 
 ```
 
