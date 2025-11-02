@@ -11,6 +11,7 @@ knitr::opts_chunk$set(echo = TRUE, message = F, warning = F)
 library(flextable)
 library(tidyverse)
 library(readxl)
+library(scales)
 library(patchwork)
 library(knitr)
 
@@ -54,11 +55,14 @@ hypertension <- hypertension %>%
     (SBP < 140 & DBP < 90) ~ "norm",
     ((SBP >= 140 & SBP < 160) | (DBP >= 90 & DBP < 100)) ~ "stage1", 
     ((SBP >= 160 & SBP < 180) | (DBP >= 100 & DBP < 110)) ~ "stage2", 
-    (SBP >= 180 | DBP >= 110) ~ "stage3", TRUE ~ "crisis" )) 
-hypertension %>% filter(severity_hypertension == "crisis") #все пациенты распределены по группам
+    (SBP >= 180 | DBP >= 110) ~ "stage3", 
+    TRUE ~ "crisis" )) 
+
+hypertension %>% 
+  filter(severity_hypertension == "crisis") #все пациенты распределены по группам
 ```
 
-# 2. Визуализировать распределения значений признаков средствами ggplot2 и сопутствующих пакетов.
+# 2. Визуализация распределения значений признаков средствами ggplot2 и сопутствующих пакетов.
 
 Проанализируем исходные данные. 
 
