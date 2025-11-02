@@ -352,7 +352,7 @@ ggplot(hypertension, aes(x = severity_hypertension, y = DBP, fill = severity_hyp
 
 \$H_a\$: *Медианы тяжести гипертензии у мужчин и женщин не равны*
 
-```{r  hypertension_gender_test}
+```{r  hypertension_gender_wilcox_test}
 hypertension_gender_MWtest <- wilcox.exact(SBP ~ Gender,
                                 data = hypertension, 
                                 alternative = "two.sided", 
