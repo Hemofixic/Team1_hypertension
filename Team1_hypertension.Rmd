@@ -64,10 +64,10 @@ hypertension <- hypertension %>%
     (SBP >= 180 | DBP >= 110) ~ "stage3", 
     TRUE ~ "crisis" ))  %>% 
   mutate(Severity_hypertension_category = case_when(
-    (Severity_hypertension == "norm") ~ 0,
-    (Severity_hypertension == "stage1") ~ 1,
-    (Severity_hypertension == "stage2") ~ 2,
-    (Severity_hypertension == "stage3") ~ 3
+    (severity_hypertension == "norm") ~ 0,
+    (severity_hypertension == "stage1") ~ 1,
+    (severity_hypertension == "stage2") ~ 2,
+    (severity_hypertension == "stage3") ~ 3
   ))
 
 hypertension %>% 
@@ -465,7 +465,7 @@ print(hypertension_gender_MWtest)
 
 ```{r contingency table }
 
-cont_table_village_hyp <- table(hypertension$Village, hypertension$Severity_hypertension)
+cont_table_village_hyp <- table(hypertension$Village, hypertension$severity_hypertension)
 chisq.test(cont_table_village_hyp)
 ```
 *Значение p-value = 0.6558 показывает, что нельзя отвергнуть нулевую гипотезу*
