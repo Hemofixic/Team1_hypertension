@@ -11,34 +11,177 @@ knitr::opts_chunk$set(echo = TRUE, message = F, warning = F)
 library(flextable)
 library(tidyverse)
 library(readxl)
+library(exactRankTests)
+library(DescTools)
+
 ```
 
 #1. Загрузка данных и разделение пациентов на три группы в зависимости от тяжести гипертензии
 
 ```{r hypertension-classification}
-hypertansion <- read_xlsx("data/originals/DominicanHTN_add_sign.xlsx")
+hypertension <- read_xlsx("data/originals/DominicanHTN_add_sign.xlsx")
 
-
+hypertension <- hypertension %>% 
+  mutate(Severity_hypertension = case_when(
+    (SBP < 140 & DBP < 90) ~ "norm",
+    ((SBP >= 140 & SBP < 160) | (DBP >= 90 & DBP < 100)) ~ "stage1",
+    ((SBP >= 160 & SBP < 180) | (DBP >= 100 & DBP < 110)) ~ "stage2",
+    (SBP >= 180 | DBP >= 110) ~ "stage3",
+    TRUE ~ "crisis"
+  )) %>% 
+  mutate(Severity_hypertension_category = case_when(
+    (Severity_hypertension == "norm") ~ 0,
+    (Severity_hypertension == "stage1") ~ 1,
+    (Severity_hypertension == "stage2") ~ 2,
+    (Severity_hypertension == "stage3") ~ 3
+  ))
 ```
 
-# 2. Визуализировать распределения значений признаков средствами ggplot2 и сопутствующих пакетов.
+# 2. Визуализация распределения значений признаков средствами ggplot2 и сопутствующих пакетов.
 
+
+```{r}
+
+  
+```
+
+# 3. Подобор и реализация средств для визуальной оценки взаимосвязи между группой по гипертензии и собранными признаками пациентов.
 
 ```{r}
 
 ```
 
-# 3. Подобрать и реализовать средства для визуальной оценки взаимосвязи между группой по гипертензии и собранными признаками пациентов.
+# 4. Выбор и реализация методов однофакторного анализа для количественной оценки взаимосвязи между степенью гипертензии и собранными признаками пациентов (помните, что взаимосвязь - это не только p-значения, но и доверительные интервалы!).
 
-```{r}
+## Сравнение тяжести гипертензии у мужчин и женщин (тест Манна-уитни)
+
+Вопрос исследования: Отличаются ли превосходят ли как правило тяжесть гипертензии у представителей одного пола относительно другого?
+
+\$H_0\$: *Медианы тяжести гипертензии у мужчин и женщин равны*
+
+\$H_a\$: *Медианы тяжести гипертензии у мужчин и женщин не равны*
+
+```{r hypertension_gender_test }
+hypertension_gender_MWtest <- wilcox.exact(SBP ~ Gender,
+                                data = hypertension, 
+                                alternative = "two.sided", 
+                                conf.int = TRUE, 
+                                conf.level = 0.95)
+
+print(hypertension_gender_MWtest)
+```
+*p-значение  = 0.2998 показывает, что на уровне значимости α = 0.05 нулевая гипотеза не может быть отвергнута.* Аналогичные вычисления, но с сырыми значениями давления также не позволили отвергнуть нулевую гипотезу и найти ассоциацию между тяжестью гипертензии и полом. Тест Манна–Уитни показал, что распределение тяжести гипертензии не отличается между мужчинами и женщинами (W = 15972, p = 0.92), что указывает на отсутствие статистически значимого доминирования одной группы над другой
+
+
+## Сравнение тяжести гипертензии у в зависимости от возраста (коэффициент корреляции Спирмена)
+
+\$H_0\$: *Возраст не ассоциирован с тяжестью гипертензии*
+
+\$H_a\$: *Возраст ассоциирован с тяжестью гипертензии*
+
+```{r hypertension_age_test}
+
+hypertension_age_SPtest <- cor.test(hypertension$Age, hypertension$Severity_hypertension_category, method = "spearman")
+
+print(hypertension_age_SPtest)
+```
+*Существует слабая, но статистически значимая положительная зависимость: возраст ассоциирован с тяжестью гипертензии.*
+
+## Сравнение тяжести гипертензии в зависимости от возраста в зависимости от пола (коэффициент корреляции Спирмена)
+
+\$H_0\$: *Нет ранговой ассоциации между возрастом и тяжестью внутри данной группы*
+
+\$H_a\$: *Ранговой ассоциации между возрастом и тяжестью внутри данной группы*
+
+```{r gender_hyp}
+get_village_statistics <- function(df, gender) {
+  df <- df %>%
+    filter(Gender == gender) 
+  test_result <- cor.test(df$Age, df$Severity_hypertension_category, method = "spearman") 
+  interval_result <- SpearmanRho(df$Age, df$Severity_hypertension_category, conf.level = 0.95) 
+  return(c(gender = gender, 
+           rho = round(test_result$estimate, 2), 
+           p.val = round(test_result$p.value, 4), 
+           interval = round(interval_result, 2)))
+}
+
+genders <- levels(factor(hypertension$Gender))
+reses_gender <-list()
+for (i in seq_along(genders)) {
+  g <- genders[i]
+  reses_gender[[i]] <- get_village_statistics(hypertension, g)
+}
+print(reses_gender)
 
 ```
+*У женщин выявлена статистически значимая положительная связь между возрастом и тяжестью гипертензии (ρ = 0.40, p < 0.0001), тогда как у мужчин такой зависимости не отмечено. Различие доверительных интервалов предполагает возможный модифицирующий эффект пола.* 
 
-# 4. Выбрать и реализовать методы однофакторного анализа для количественной оценки взаимосвязи между степенью гипертензии и собранными признаками пациентов (помните, что взаимосвязь - это не только p-значения, но и доверительные интервалы!).
+## Проверка зависимости гипертензии от возраста женщин для каждой деревни 
 
-```{r}
+```{r village_female_hyp}
+get_village_statistics <- function(df, village) {
+  df <- df %>%
+    filter(Village == village, Gender == "Female") 
+  test_result <- cor.test(df$Age, df$Severity_hypertension_category, method = "spearman") 
+  return(test_result)
+}
+
+villages <- levels(factor(hypertension$Village))
+reses_villages <-list()
+for (i in seq_along(villages)) {
+  v <- villages[i]
+  stat_villages <- get_village_statistics(hypertension, v)
+  reses_villages[[i]] <- c(village=v,
+                           rho = round(stat_villages$estimate, 2),
+                           p.val = round(stat_villages$p.value, 4))
+} 
+print(reses_villages)
 
 ```
+*При расммотрении каждой деревни по отдельности можно найти деревни, где наблюдается сильная или средняя статистически значимые ассоциации между возрастом женщин и тяжестью гипертензии. В Bare' Nuevo ρ = 0.74, p = 0.0003, в San Antonio  ρ = 0.59, p = 0.0063, в Batey Verde ρ = 0.51, p = 0.0038, в Juan Sanchez ρ = 0.42, p = 0.0071, в Carmona ρ = 0.38, p = 0.0172, в Cojobal p = 0.32, p = 0.0279. В деревнях La Altagracia и Los Gueneos ассоциация статистически незначима при α = 0.05.*
+
+## Сравнение тяжести гипертензии у в зависимости от возраста женщин (менопауза / нет менопаузы) (тест Манна-уитни)
+
+\$H_0\$: *Тяжесть гипертензии у женщин с менопаузой ≤ тяжести у женщин до менопаузы*
+
+\$H_a\$: *Тяжесть гипертензии у женщин с менопаузой > тяжести у женщин до менопаузы*
+
+```{r hypertension_gender_test }
+menopause_hypertension <- hypertension %>%
+  select(Age, Gender, Severity_hypertension_category) %>%
+  filter(Gender == "Female")  %>%
+  mutate(Menopause = case_when(
+    (Age < 50) ~ "no",
+    (Age >= 50) ~ "menopause"
+  )) %>% 
+  mutate(Menopause_category = case_when(
+    (Menopause == "no") ~ 0,
+    (Menopause == "menopause") ~ 1
+  ))
+
+hypertension_menopause_MWtest <- wilcox.exact(Severity_hypertension_category ~ Menopause_category,
+                                data = menopause_hypertension, 
+                                alternative = "less", 
+                                conf.int = TRUE, 
+                                conf.level = 0.95)
+
+print(hypertension_gender_MWtest)
+```
+
+## Сравнение тяжести гипертензии в зависимости от деревни 
+
+\$H_0\$: *Связи между деревней и тяжестью гпертензии нет*
+
+\$H_a\$: *Связь между деревней и тяжестью гпертензии есть*
+
+```{r contingency table }
+
+cont_table_village_hyp <- table(hypertension$Village, hypertension$Severity_hypertension)
+chisq.test(cont_table_village_hyp)
+```
+*Значение p-value = 0.6558 показывает, что нельзя отвергнуть нулевую гипотезу*
+
+## Поскольку на стадии визуализации был получен график, на котором видно значимую разницу в среднем возрасте между мужчинами и женщинами, обладающими 3ей стадией гипертензии, то было выдвинута гипотеза, что 
 
 # 5. Привести интерпретацию полученных результатов.
 
