@@ -11,21 +11,137 @@ knitr::opts_chunk$set(echo = TRUE, message = F, warning = F)
 library(flextable)
 library(tidyverse)
 library(readxl)
+library(patchwork)
+library(knitr)
+
+no_legend <- theme(
+    legend.position= "none"
+  )
+no_y <- labs(
+  y = ""
+)
+
+gender_fill <- scale_fill_manual(name= "Пол",
+                   labels = c("Female" = "Женский", "Male" = "Мужской"),
+                   values=c(
+                    "Male" = "#1b909a",
+                    "Female" = "#eb4729")
+)
+gender_col <- scale_colour_manual(name= "Пол",
+                   labels = c("Female" = "Женский", "Male" = "Мужской"),
+                   values=c(
+                    "Male" = "#1b909a",
+                    "Female" = "#eb4729")
+)
+theme_set(theme_bw())
+axis_theme <- theme(
+    plot.title = element_text(size=20, hjust=0.5),
+    plot.subtitle = element_text(size=14, hjust=0.5),
+    axis.title = element_text(size=16),
+    axis.text.y = element_text(size=12),
+    axis.text.x = element_text(size=12),
+    legend.title = element_text(size = 16),
+    legend.text = element_text(size = 14),
+    )
 ```
 
-#1. Загрузка данных и разделение пациентов на три группы в зависимости от тяжести гипертензии
+# 1. Загрузка данных и разделение пациентов на три группы в зависимости от тяжести гипертензии
 
 ```{r hypertension-classification}
-hypertansion <- read_xlsx("data/originals/DominicanHTN_add_sign.xlsx")
+hypertension <- read_xlsx("data/originals/DominicanHTN_add_sign.xlsx")
 
 
 ```
 
 # 2. Визуализировать распределения значений признаков средствами ggplot2 и сопутствующих пакетов.
 
+Проанализируем исходные данные. 
 
-```{r}
+Датасет состоит из 5 признаков:
 
+- деревня (один из 8 вариантов)
+- пол (мужской или женский)
+- возраст (целое число)
+- систолическое давление (целое число)
+- диастолическое давление (целое число)
+
+Пропущенных значений нет.
+
+В представленном датасете женщин примерно в 2 раза больше, чем мужчин:
+
+```{r gender_counts, echo=FALSE}
+
+gender_table <- hypertension %>%
+  mutate(Пол = case_when(
+    Gender == "Male" ~ "Мужской",
+    Gender == "Female" ~ "Женский"
+  )) %>%
+  count(Пол) %>%
+  rename("Количество" = n) %>%
+  bind_rows(
+    tibble(Пол = "Всего", Количество = sum(.$Количество))
+  ) 
+qflextable(gender_table) %>% set_caption("Распределение пациентов по полу")
+
+```
+
+```{r median_age, include=FALSE}
+hypertension %>% group_by(Gender) %>% summarise(median_age=median(Age))
+```
+
+Количественные признаки распределены неравномерно, их распределение у женщин и мужчин отличается. Особенно заметна разница в возрасте - для женщин медианный возраст составляет 43 года, для мужчин - 53.
+
+
+```{r, fig.height=7, fig.width=10, fig.align='center', echo=FALSE}
+p1 <- ggplot(hypertension, aes(x = SBP, fill = Gender)) + 
+  geom_density(alpha = 0.5) + no_legend + labs(x = "ДАД") + scale_x_continuous(breaks = seq(80, 350, 20))
+p2 <- ggplot(hypertension, aes(x = DBP, fill = Gender)) + 
+  geom_density(alpha = 0.5) + no_legend + labs(x = "САД") + scale_x_continuous(breaks = seq(20, 350, 20))
+p3 <- ggplot(hypertension, aes(x = Age, fill = Gender)) + 
+  geom_density(alpha = 0.5) + labs(x = "Возраст") + scale_x_continuous(breaks=seq(0, 100, 10))
+
+
+(p2 + p1) / p3 + plot_annotation(title = "Распределение количественных признаков у мужчин и женщин") + plot_layout(guides = "collect") & no_y & gender_fill & axis_theme
+```
+
+Визуализируем зависимость систолического артериального давления (САД) и диастолического артериального давления (ДАД) от возраста для разных полов. ДАД имеет меньшие значения, меньший разброс и меньше зависит от возраста. 
+
+
+```{r bp_age, fig.width=10 , echo=FALSE}
+p1 <- ggplot(hypertension, aes(x=Age, y=SBP, color=Gender))+
+  geom_point() + labs(x = "Возраст", y="САД") + scale_y_continuous(breaks = seq(20, 350, 20))
+p2 <- ggplot(hypertension, aes(x=Age, y=DBP, color=Gender))+
+  geom_point() + labs(x = "Возраст", y="ДАД") + scale_y_continuous(breaks = seq(20, 350, 20))
+p1 + p2 + plot_layout(guides = "collect") + plot_annotation(title = "Зависимость САД и ДАД от возраста для мужчин и женщин") & gender_col & axis_theme & theme(legend.position = "bottom") 
+```
+
+Деревни отличаются по населению и гендерному соотношению - в деревнях от 32 до 64 человек, из них женщин - от 60% до 80%.
+
+
+```{r villages, fig.width=11, fig.height=4, echo=FALSE}
+ggplot(hypertension) +
+  geom_bar(aes(x = fct_infreq(Village), fill = Gender), alpha=0.8) + gender_fill +
+  labs(x="", y="Число жителей",title="Число жителей и гендерный состав населенных пунктов")+axis_theme
+```
+
+```{r villages2, fig.width=12, fig.height=4, include=FALSE}
+village_stats <- hypertension %>%
+  group_by(Village) %>%
+  summarise(
+    total = n(),
+    pct_female = mean(Gender == "Female") * 100
+  )
+ggplot(village_stats, aes(x = fct_reorder(Village, total, .desc = T), y = total, fill = pct_female)) +
+  geom_col() +
+  scale_fill_gradient(low = "#1b909a", high = "#eb4729", name = "% женщин") +
+  labs(x = "", y = "Число жителей", title="Число жителей и гендерный состав населенных пунктов") + axis_theme
+```
+
+```{r villages3, fig.width=12, fig.height=4, include=FALSE}
+ggplot(village_stats, aes(x = fct_reorder(Village, total, .desc = T), y = total, fill = pct_female)) +
+  geom_col() +
+  scale_fill_gradient(low = "#9BCD9B", high = "darkolivegreen", name = "% женщин") +
+  labs(x = "", y = "Число жителей", title="Число жителей и гендерный состав населенных пунктов") + axis_theme
 ```
 
 # 3. Подобрать и реализовать средства для визуальной оценки взаимосвязи между группой по гипертензии и собранными признаками пациентов.
