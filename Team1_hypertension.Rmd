@@ -49,8 +49,13 @@ axis_theme <- theme(
 
 ```{r hypertension-classification}
 hypertension <- read_xlsx("data/originals/DominicanHTN_add_sign.xlsx")
-
-
+hypertension <- hypertension %>%
+  mutate(severity_hypertension = case_when(
+    (SBP < 140 & DBP < 90) ~ "norm",
+    ((SBP >= 140 & SBP < 160) | (DBP >= 90 & DBP < 100)) ~ "stage1", 
+    ((SBP >= 160 & SBP < 180) | (DBP >= 100 & DBP < 110)) ~ "stage2", 
+    (SBP >= 180 | DBP >= 110) ~ "stage3", TRUE ~ "crisis" )) 
+hypertension %>% filter(severity_hypertension == "crisis") #все пациенты распределены по группам
 ```
 
 # 2. Визуализировать распределения значений признаков средствами ggplot2 и сопутствующих пакетов.
@@ -146,9 +151,178 @@ ggplot(village_stats, aes(x = fct_reorder(Village, total, .desc = T), y = total,
 
 # 3. Подобрать и реализовать средства для визуальной оценки взаимосвязи между группой по гипертензии и собранными признаками пациентов.
 
-```{r}
+## Распределение возраста по группам в зависимости от выраженности гипертензии
 
+Построим график распределения возраста пациентов в зависимости от выраженности гипертензии в группах.
+
+```{r, fig.width=11, fig.height=6}
+scale_x_hypertension <- scale_x_discrete(name = "Группа",
+                                         labels = c("norm" = "Здоровые пациенты",
+                                                    "stage1" = "Гипертензия 1 степени",
+                                                    "stage2" = "Гипертензия 2 степени",
+                                                    "stage3" = "Гипертензия 3 степени"))
+
+ggplot(hypertension, aes(x = severity_hypertension, y = Age)) +
+  geom_boxplot(width = 0.8, alpha = 0.6, fill = "aquamarine3") +
+  geom_jitter(width = 0.3, alpha = 0.4, color = "black") +
+  labs(title = "Распределение возраста пациентов в зависимости от выраженности гипертензии", 
+       x = "Группа", 
+       y = "Возраст, лет")+
+  scale_x_hypertension +
+  theme_bw()+
+  theme(
+    plot.title = element_text(size = 19, hjust = 0.5),
+    axis.title = element_text(size = 17),
+    axis.text.y = element_text(size = 15),
+    axis.text.x = element_text(size = 15)
+  )
 ```
+
+По мере увеличения степени гипертензии возраст пациентов в среднем увеличивается, что указывает на возможную ассоциацию выраженности гипертензии от возраста.
+
+Рассмотрим данный график в зависимости от пола.
+
+```{r, fig.width=12, fig.height=6}
+scale_fill_gender <- scale_fill_manual(
+    name = "Пол",
+    labels = c(
+      "Male" = "Мужской",
+      "Female" = "Женский"),
+    values = c(
+      "Male" = "dodgerblue",
+      "Female" = "palevioletred"))
+
+ggplot(hypertension, aes(x = severity_hypertension, y = Age, fill = Gender)) +
+  geom_boxplot(position = position_dodge(width = 0.8)) +
+  labs(title = "Распределение возраста пациентов в зависимости от выраженности гипертензии", 
+       x = "Группа", 
+       y = "Возраст, лет")+
+  scale_x_hypertension+
+  scale_fill_gender+
+  theme_bw()+
+  theme(
+    plot.title = element_text(size = 21, hjust = 0.2),
+    axis.title = element_text(size = 18),
+    axis.text.y = element_text(size = 16),
+    axis.text.x = element_text(size = 16),
+    legend.position = "inside",
+    legend.justification = c("right", "top"),
+    legend.title = element_text(size = 18),
+    legend.text = element_text(size = 18),
+    legend.background = element_rect(color = "black", size = 0.3)
+  )
+```
+Видно, что средний возраст женщин в каждой из групп меньше, чем у мужчин.
+
+## Распределение пола по группам в зависимости от выраженности гипертензии
+
+Построим график распределения пола пациентов в зависимости от выраженности гипертензии в группах.
+
+```{r, fig.width=14, fig.height=7}
+ggplot(hypertension, aes(x = severity_hypertension, fill = Gender)) +
+  geom_bar(position = "dodge", width = 0.7) +
+  labs(title = "График распределения пола пациентов по группам в зависимости от выраженности гипертензии", 
+       x = "Группа", 
+       y = "Количество пациентов, шт.") +
+  scale_x_hypertension +
+  scale_y_continuous(
+    name = "Количество пациентов, шт.",
+    breaks = seq(0, 150, 25))+
+  scale_fill_gender+
+  theme_bw()+
+  theme(
+    plot.title = element_text(size = 21, hjust = 0.5),
+    axis.title = element_text(size = 19),
+    axis.text.y = element_text(size = 16),
+    axis.text.x = element_text(size = 18),
+    legend.position = "inside",
+    legend.justification = c("right", "top"),
+    legend.title = element_text(size = 19),
+    legend.text = element_text(size = 19),
+    legend.background = element_rect(color = "black", size = 0.3)
+  )
+```
+
+Из графика видно, что женщин больше в каждой из групп. Также видно, что количество пациентов в каждой из групп снижается с повышением степени гипертензии.
+
+## Распределение групп по деревням в зависимости от выраженности гипертензии 
+
+Построим график распределения групп по деревням. 
+
+```{r, fig.width=14, fig.height=7}
+scale_fill_hypertension <- scale_fill_manual(
+    name = "Группа",
+    labels = c(
+      "norm" = "Здоровые пациенты",
+      "stage1" = "1 степень",
+      "stage2" = "2 степень",
+      "stage3" = "3 степень"),
+    values = c(
+      "norm" = "palegreen",
+      "stage1" = "seagreen2",
+      "stage2" = "mediumseagreen",
+      "stage3" = "seagreen"))
+
+ggplot(hypertension, aes(x = Village, fill = severity_hypertension)) +
+  geom_bar(position = "dodge", width = 0.8) +
+  labs(title = "График распределения групп по деревням в зависимости от выраженности гипертензии",
+       x = "Деревня", y = "Количество пациентов, шт.")+
+  scale_fill_hypertension+
+  theme_bw()+
+  theme(
+    plot.title = element_text(size = 23, hjust = 0.5),
+    axis.title = element_text(size = 20),
+    axis.text.y = element_text(size = 16),
+    axis.text.x = element_text(size = 16),
+    legend.position = "inside",
+    legend.justification = c("right", "top"),
+    legend.title = element_text(size = 18),
+    legend.text = element_text(size = 18),
+    legend.background = element_rect(color = "black", size = 0.3)
+  )
+```
+Видно, что в двух деревнях (Bare' Nuevo и Batey Verde) не было пациентов с гипертензией 3 степени. Во всех деревнях большинство пациентов здоровы.
+
+## Систолическое и диастолическое давление по группам в зависимости от выраженности гипертензии
+```{r, fig.width=14, fig.height=9}
+ggplot(hypertension, aes(x = severity_hypertension, y = SBP)) +
+  geom_violin(fill = "cornflowerblue", alpha = 0.5) +
+  geom_boxplot(fill = "royalblue4", width = 0.15) +
+  labs(title = "САД по группам в зависимости от выраженности гипертензии", 
+       x = "Группа", 
+       y = "САД, мм рт. ст.") +
+  scale_x_hypertension+
+  scale_y_continuous(
+    name = "САД, мм рт. ст.",
+    breaks = seq(0, 300, 25))+
+  theme_bw()+
+  theme(
+    plot.title = element_text(size = 28, hjust = 0.5),
+    axis.title = element_text(size = 25),
+    axis.text.y = element_text(size = 20),
+    axis.text.x = element_text(size = 19)
+  )
+
+ggplot(hypertension, aes(x = severity_hypertension, y = DBP, fill = severity_hypertension)) +
+  geom_violin(fill = "cornflowerblue", alpha = 0.5) +
+  geom_boxplot(fill = "royalblue4", width = 0.15) +
+  labs(title = "ДАД по группам в зависимости от выраженности гипертензии", 
+       x = "Группа", 
+       y = "ДАД, мм рт. ст.") +
+  scale_y_continuous(
+    name = "САД, мм рт. ст.",
+    breaks = seq(0, 300, 25))+
+  scale_x_hypertension+
+  theme_bw()+
+  theme(
+    plot.title = element_text(size = 28, hjust = 0.5),
+    axis.title = element_text(size = 25),
+    axis.text.y = element_text(size = 20),
+    axis.text.x = element_text(size = 19)
+  )
+```
+
+САД и ДАД увеличиваются с возрастанием степени гипертензии, что логично и соответствует классификации артериальной гипертензии, а также видно, что диапазон значений и медиана для ДАД и САД четко различаются между группами в зависимости от выраженности гипертензии.
 
 # 4. Выбрать и реализовать методы однофакторного анализа для количественной оценки взаимосвязи между степенью гипертензии и собранными признаками пациентов (помните, что взаимосвязь - это не только p-значения, но и доверительные интервалы!).
 
