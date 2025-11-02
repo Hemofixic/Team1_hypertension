@@ -62,7 +62,13 @@ hypertension <- hypertension %>%
     ((SBP >= 140 & SBP < 160) | (DBP >= 90 & DBP < 100)) ~ "stage1", 
     ((SBP >= 160 & SBP < 180) | (DBP >= 100 & DBP < 110)) ~ "stage2", 
     (SBP >= 180 | DBP >= 110) ~ "stage3", 
-    TRUE ~ "crisis" )) 
+    TRUE ~ "crisis" ))  %>% 
+  mutate(Severity_hypertension_category = case_when(
+    (Severity_hypertension == "norm") ~ 0,
+    (Severity_hypertension == "stage1") ~ 1,
+    (Severity_hypertension == "stage2") ~ 2,
+    (Severity_hypertension == "stage3") ~ 3
+  ))
 
 hypertension %>% 
   filter(severity_hypertension == "crisis") #все пациенты распределены по группам
